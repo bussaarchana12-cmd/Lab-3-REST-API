@@ -3,12 +3,115 @@ const express = require("express");
 const db = require("./db");
 
 const app = express();
-
 app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
 
-// GET all books with search, sorting, pagination and price filters
+// HOME PAGE - API DOCUMENTATION
+app.get("/", (request, response) => {
+    response.send(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Lab 3 - REST API</title>
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <style>
+                body {
+                    font-family: Arial, sans-serif;
+                    margin: 30px;
+                    background: #f4f6fa;
+                    color: #222;
+                }
+                h1 { color: #243b64; }
+                table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    background: white;
+                }
+                th, td {
+                    padding: 13px;
+                    border: 1px solid #ddd;
+                    text-align: left;
+                }
+                th {
+                    background: #243b64;
+                    color: white;
+                }
+                a { color: #1769aa; }
+                .method { font-weight: bold; }
+                footer { margin-top: 25px; color: #555; }
+            </style>
+        </head>
+        <body>
+            <h1>Lab 3 - REST API</h1>
+            <h2>Book Management API</h2>
+            <p>Welcome! Below are the available API endpoints.</p>
+
+            <table>
+                <tr>
+                    <th>HTTP Method</th>
+                    <th>Endpoint</th>
+                    <th>Description</th>
+                </tr>
+                <tr>
+                    <td class="method">GET</td>
+                    <td><a href="/books">/books</a></td>
+                    <td>Get All Books</td>
+                </tr>
+                <tr>
+                    <td class="method">GET</td>
+                    <td><a href="/books/1">/books/1</a></td>
+                    <td>Get Book by ID</td>
+                </tr>
+                <tr>
+                    <td class="method">GET</td>
+                    <td><a href="/books?search_q=Harry">/books?search_q=Harry</a></td>
+                    <td>Search Books</td>
+                </tr>
+                <tr>
+                    <td class="method">GET</td>
+                    <td><a href="/books?order_by=title&order=ASC">/books?order_by=title&order=ASC</a></td>
+                    <td>Sort Books</td>
+                </tr>
+                <tr>
+                    <td class="method">GET</td>
+                    <td><a href="/books?limit=5&offset=0">/books?limit=5&offset=0</a></td>
+                    <td>Pagination</td>
+                </tr>
+                <tr>
+                    <td class="method">GET</td>
+                    <td><a href="/books?min_price=100&max_price=500">/books?min_price=100&max_price=500</a></td>
+                    <td>Filter by Price</td>
+                </tr>
+                <tr>
+                    <td class="method">POST</td>
+                    <td>/books</td>
+                    <td>Add New Book</td>
+                </tr>
+                <tr>
+                    <td class="method">PUT</td>
+                    <td>/books/1</td>
+                    <td>Update Book</td>
+                </tr>
+                <tr>
+                    <td class="method">DELETE</td>
+                    <td>/books/1</td>
+                    <td>Delete Book</td>
+                </tr>
+            </table>
+
+            <h3>Technologies Used</h3>
+            <p>Node.js | Express.js | SQLite | JavaScript</p>
+
+            <footer>
+                <p>Backend Development Fundamentals - Lab 3</p>
+            </footer>
+        </body>
+        </html>
+    `);
+});
+
+// GET ALL BOOKS - SEARCH, SORT, PAGINATION, PRICE FILTER
 app.get("/books", async (request, response) => {
     try {
         const database = await db;
@@ -23,10 +126,7 @@ app.get("/books", async (request, response) => {
             max_price
         } = request.query;
 
-        // Validate sorting column
-        const allowedColumns = [
-            "id", "title", "author", "price", "pages"
-        ];
+        const allowedColumns = ["id", "title", "author", "price", "pages"];
 
         if (!allowedColumns.includes(order_by)) {
             return response.status(400).json({
@@ -34,7 +134,6 @@ app.get("/books", async (request, response) => {
             });
         }
 
-        // Validate sorting order
         const sortOrder = order.toUpperCase();
 
         if (!["ASC", "DESC"].includes(sortOrder)) {
@@ -43,7 +142,6 @@ app.get("/books", async (request, response) => {
             });
         }
 
-        // Validate pagination
         const pageLimit = Number(limit);
         const pageOffset = Number(offset);
 
@@ -60,7 +158,6 @@ app.get("/books", async (request, response) => {
             });
         }
 
-        // Validate price filters
         const minPrice =
             min_price === undefined ? undefined : Number(min_price);
 
@@ -81,11 +178,9 @@ app.get("/books", async (request, response) => {
             });
         }
 
-        // Build SQL query
         let query = "SELECT * FROM book WHERE 1=1";
         const params = [];
 
-        // Search by title or author
         if (search_q.trim()) {
             query += " AND (title LIKE ? OR author LIKE ?)";
             params.push(
@@ -94,27 +189,21 @@ app.get("/books", async (request, response) => {
             );
         }
 
-        // Minimum price
         if (minPrice !== undefined) {
             query += " AND price >= ?";
             params.push(minPrice);
         }
 
-        // Maximum price
         if (maxPrice !== undefined) {
             query += " AND price <= ?";
             params.push(maxPrice);
         }
 
-        // Sorting
         query += ` ORDER BY ${order_by} ${sortOrder}`;
-
-        // Pagination
         query += " LIMIT ? OFFSET ?";
         params.push(pageLimit, pageOffset);
 
         const books = await database.all(query, params);
-
         response.status(200).json(books);
 
     } catch (error) {
@@ -125,8 +214,7 @@ app.get("/books", async (request, response) => {
     }
 });
 
-
-// GET one book by ID
+// GET ONE BOOK BY ID
 app.get("/books/:bookId", async (request, response) => {
     try {
         const bookId = Number(request.params.bookId);
@@ -138,7 +226,6 @@ app.get("/books/:bookId", async (request, response) => {
         }
 
         const database = await db;
-
         const book = await database.get(
             "SELECT * FROM book WHERE id = ?",
             [bookId]
@@ -160,8 +247,7 @@ app.get("/books/:bookId", async (request, response) => {
     }
 });
 
-
-// POST - Add a new book
+// POST - ADD NEW BOOK
 app.post("/books", async (request, response) => {
     try {
         const { title, author, price, pages } = request.body;
@@ -199,8 +285,7 @@ app.post("/books", async (request, response) => {
     }
 });
 
-
-// PUT - Update an existing book
+// PUT - UPDATE BOOK
 app.put("/books/:bookId", async (request, response) => {
     try {
         const bookId = Number(request.params.bookId);
@@ -258,8 +343,7 @@ app.put("/books/:bookId", async (request, response) => {
     }
 });
 
-
-// DELETE - Delete a book
+// DELETE - DELETE BOOK
 app.delete("/books/:bookId", async (request, response) => {
     try {
         const bookId = Number(request.params.bookId);
@@ -300,62 +384,14 @@ app.delete("/books/:bookId", async (request, response) => {
     }
 });
 
-
-// Handle unknown routes
+// HANDLE UNKNOWN ROUTES - KEEP THIS LAST
 app.use((request, response) => {
     response.status(404).json({
         error: "Route not found"
     });
 });
 
-// Home page - API Documentation
-app.get("/", (request, response) => {
-    response.send(`
-        <html>
-        <head>
-            <title>Lab 3 - REST API</title>
-            <style>
-                body {
-                    font-family: Arial;
-                    margin: 40px;
-                    background: #f4f4f4;
-                }
-                h1 { color: #243b64; }
-                table {
-                    width: 100%;
-                    border-collapse: collapse;
-                    background: white;
-                }
-                th, td {
-                    padding: 12px;
-                    border: 1px solid #ddd;
-                    text-align: left;
-                }
-                th { background: #243b64; color: white; }
-            </style>
-        </head>
-        <body>
-            <h1>Lab 3 - REST API</h1>
-            <h2>Book Management API Endpoints</h2>
-            <table>
-                <tr><th>Method</th><th>Path</th><th>Description</th></tr>
-                <tr><td>GET</td><td>/books</td><td>Get All Books</td></tr>
-                <tr><td>GET</td><td>/books/1</td><td>Get Book by ID</td></tr>
-                <tr><td>GET</td><td>/books?search=Harry</td><td>Search Books</td></tr>
-                <tr><td>GET</td><td>/books?sort=title&order=ASC</td><td>Sort Books</td></tr>
-                <tr><td>POST</td><td>/books</td><td>Add New Book</td></tr>
-                <tr><td>PUT</td><td>/books/1</td><td>Update Book</td></tr>
-                <tr><td>DELETE</td><td>/books/1</td><td>Delete Book</td></tr>
-            </table>
-            <h3>Technology Used</h3>
-            <p>Node.js | Express.js | SQLite</p>
-        </body>
-        </html>
-    `);
-});
-
-
-// Start server
+// START SERVER
 app.listen(PORT, () => {
-    console.log(`Server running at http://localhost:${PORT}`);
+    console.log(`Server running on port ${PORT}`);
 });
